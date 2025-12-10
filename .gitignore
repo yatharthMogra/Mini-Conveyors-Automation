@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# CODESYS
+*.compileinfo
+*.bak
+*.tmp
+~$*
+
+# Data (keep structure, ignore large CSVs during dev)
+# Uncomment below if CSVs get too large for the repo:
+# data/baseline/*.csv
+# data/improved/*.csv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
