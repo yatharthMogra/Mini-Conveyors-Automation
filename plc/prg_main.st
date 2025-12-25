@@ -48,8 +48,45 @@ fbSafety(
 GVL.bSafeToRun    := fbSafety.bSafeToRun;
 GVL.bFaultActive  := fbSafety.bFaultActive;
 GVL.bEStopLatched := fbSafety.bEStopLatched;
-GVL.eFaultCode    := fbSafety.eFaultCode;
-GVL.sFaultMessage := fbSafety.sFaultMessage;
+
+(* =========================================================================
+   2b. EXECUTE JAM DETECTION BLOCK
+   ========================================================================= *)
+fbJamDetection(
+    bInfeedPE       := IO_Mapping.bInfeedPE,
+    bDiverterPE     := IO_Mapping.bDiverterPE,
+    bOutfeedBPE     := IO_Mapping.bOutfeedBPE,
+    bOutfeedCPE     := IO_Mapping.bOutfeedCPE,
+    bSystemRunning  := (GVL.eSystemState = E_SystemState.RUNNING),
+    bFaultClear     := GVL.bHMI_FaultClear,
+    rJamTimeoutSec  := GVL.rJamTimeoutSec
+);
+
+(* Update global jam status *)
+GVL.bJamDetected  := fbJamDetection.bJamDetected;
+GVL.stJamInfeed   := fbJamDetection.stInfeedJam;
+GVL.stJamDiverter := fbJamDetection.stDiverterJam;
+GVL.stJamOutfeedB := fbJamDetection.stOutfeedBJam;
+GVL.stJamOutfeedC := fbJamDetection.stOutfeedCJam;
+
+(* Use jam fault info if jam is active, otherwise use safety fault info *)
+IF fbJamDetection.bJamDetected THEN
+    GVL.eFaultCode    := fbJamDetection.eFaultCode;
+    GVL.sFaultMessage := fbJamDetection.sFaultMessage;
+ELSE
+    GVL.eFaultCode    := fbSafety.eFaultCode;
+    GVL.sFaultMessage := fbSafety.sFaultMessage;
+END_IF
+
+(* =========================================================================
+   2c. EXECUTE CONVEYOR BLOCK
+   ========================================================================= *)
+fbConveyor(
+    bRunCommand     := GVL.bMotorRunCmd,
+    bJogCommand     := GVL.bHMI_JogFwd,
+    bManualMode     := (GVL.eOperatingMode = E_OperatingMode.MANUAL),
+    rSpeedSetpoint  := GVL.rConveyorSpeed
+);
 
 (* =========================================================================
    3. STATE MACHINE
