@@ -79,11 +79,35 @@ ELSE
 END_IF
 
 (* =========================================================================
-   2c. EXECUTE CONVEYOR BLOCK
+   2c. EXECUTE MANUAL MODE BLOCK
+   ========================================================================= *)
+fbManualMode(
+    bManualMode     := (GVL.eOperatingMode = E_OperatingMode.MANUAL),
+    bJogFwdPB       := GVL.bHMI_JogFwd,
+    bSystemRunning  := (GVL.eSystemState = E_SystemState.RUNNING),
+    bSafeToRun      := GVL.bSafeToRun
+);
+
+(* =========================================================================
+   2d. EXECUTE DIVERTER BLOCK
+   ========================================================================= *)
+fbDiverter(
+    bInfeedPE       := IO_Mapping.bInfeedPE,
+    bDiverterPE     := IO_Mapping.bDiverterPE,
+    bSystemRunning  := (GVL.eSystemState = E_SystemState.RUNNING),
+    bAutoMode       := (GVL.eOperatingMode = E_OperatingMode.AUTO)
+);
+
+(* Update global routing info *)
+GVL.bRejectNext  := fbDiverter.bRejectActive;
+GVL.diBoxCounter := fbDiverter.diBoxCounter;
+
+(* =========================================================================
+   2e. EXECUTE CONVEYOR BLOCK
    ========================================================================= *)
 fbConveyor(
     bRunCommand     := GVL.bMotorRunCmd,
-    bJogCommand     := GVL.bHMI_JogFwd,
+    bJogCommand     := fbManualMode.bMotorJogCmd,
     bManualMode     := (GVL.eOperatingMode = E_OperatingMode.MANUAL),
     rSpeedSetpoint  := GVL.rConveyorSpeed
 );
@@ -143,8 +167,15 @@ CASE GVL.eSystemState OF
         IF GVL.eOperatingMode = E_OperatingMode.AUTO THEN
             GVL.bMotorRunCmd := TRUE;
         ELSE
-            (* Manual mode: motor controlled by FB_ManualMode *)
-            ; (* FB_ManualMode sets bMotorRunCmd *)
+            (* Manual mode: motor runs only while jog is active *)
+            GVL.bMotorRunCmd := fbManualMode.bMotorJogCmd;
+        END_IF
+        
+        (* Apply diverter output in auto mode *)
+        IF GVL.eOperatingMode = E_OperatingMode.AUTO THEN
+            IO_Mapping.bDiverterActuator := fbDiverter.bDiverterOutput;
+        ELSE
+            IO_Mapping.bDiverterActuator := FALSE;  (* Safe position in manual *)
         END_IF
         
         (* Transition to FAULT *)
