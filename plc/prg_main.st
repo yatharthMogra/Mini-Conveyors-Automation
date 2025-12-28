@@ -103,7 +103,23 @@ GVL.bRejectNext  := fbDiverter.bRejectActive;
 GVL.diBoxCounter := fbDiverter.diBoxCounter;
 
 (* =========================================================================
-   2e. EXECUTE CONVEYOR BLOCK
+   2e. EXECUTE METRICS BLOCK
+   ========================================================================= *)
+fbMetrics(
+    bInfeedPE       := IO_Mapping.bInfeedPE,
+    bOutfeedBPE     := IO_Mapping.bOutfeedBPE,
+    bOutfeedCPE     := IO_Mapping.bOutfeedCPE,
+    bSystemRunning  := (GVL.eSystemState = E_SystemState.RUNNING),
+    bFaultState     := (GVL.eSystemState = E_SystemState.FAULT),
+    bJamEvent       := GVL.bJamDetected,
+    tScanTime       := T#10MS
+);
+
+(* Update global metrics *)
+GVL.stMetrics := fbMetrics.stMetrics;
+
+(* =========================================================================
+   2f. EXECUTE CONVEYOR BLOCK
    ========================================================================= *)
 fbConveyor(
     bRunCommand     := GVL.bMotorRunCmd,
