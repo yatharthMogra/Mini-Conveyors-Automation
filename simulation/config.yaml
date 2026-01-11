@@ -1,0 +1,51 @@
+# =============================================================================
+# Process Simulator Configuration
+# Mini-Fulfillment Conveyor System
+# =============================================================================
+
+# OPC-UA Connection
+opcua:
+  server_url: "opc.tcp://localhost:4840"
+  namespace: "http://codesys.com/UA"
+  timeout_ms: 5000
+
+# Conveyor Physical Parameters (simulated)
+conveyor:
+  total_length_mm: 3000        # Total conveyor length
+  infeed_to_diverter_mm: 1500  # Distance from infeed PE to diverter PE
+  diverter_to_outfeed_mm: 1000 # Distance from diverter to outfeed (B or C)
+  belt_speed_mms: 500          # Belt speed in mm/s (at speed setpoint 1.0)
+  box_length_mm: 200           # Box length along conveyor direction
+
+# Box Generation
+boxes:
+  arrival_rate_per_hour: 72    # Average boxes per hour (slightly above 60 target)
+  arrival_jitter_pct: 20       # Random variation in inter-arrival time (+/- %)
+  min_spacing_mm: 300          # Minimum gap between boxes on conveyor
+
+# Jam Simulation
+jams:
+  enabled: true
+  probability_per_box: 0.03    # 3% chance each box causes a jam
+  jam_location: "random"       # "random", "infeed", "diverter", "outfeed_b", "outfeed_c"
+  auto_clear_sec: 0            # 0 = manual clear required; >0 = auto-clear after N seconds
+
+# Simulation Runtime
+simulation:
+  duration_sec: 900            # 15 minutes per run
+  time_scale: 1.0              # 1.0 = real-time, 10.0 = 10x speed
+  update_interval_ms: 50       # Simulator update interval
+
+# Data Logging
+logging:
+  enabled: true
+  output_dir: "../data"
+  log_interval_sec: 1.0        # How often to log metrics to CSV
+  log_events: true             # Log individual box events (arrival, exit, jam)
+
+# Visualization
+visualization:
+  enabled: true
+  window_width: 1000
+  window_height: 500
+  update_fps: 30

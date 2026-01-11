@@ -1,0 +1,6 @@
+opcua>=0.98.13
+asyncua>=1.1.5
+pyyaml>=6.0
+matplotlib>=3.7
+pandas>=2.0
+jupyter>=1.0
