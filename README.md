@@ -48,6 +48,36 @@ automation_amz/
 3. Install Python dependencies: `pip install -r simulation/requirements.txt`
 4. Run the process simulator: `python simulation/process_sim.py`
 
+### Quick Start (Simulator Only, No CODESYS)
+
+The Python simulator can run in standalone mode without a CODESYS runtime:
+
+```bash
+cd simulation
+pip install -r requirements.txt
+python process_sim.py --no-viz --duration 300
+```
+
+This runs a 5-minute simulation in local mode, logging metrics and events to `data/`.
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [`docs/01_requirements.md`](docs/01_requirements.md) | System requirements, I/O lists, success criteria |
+| [`docs/02_io_table.md`](docs/02_io_table.md) | Complete I/O address mapping |
+| [`docs/03_block_diagram.md`](docs/03_block_diagram.md) | P&ID and signal flow diagrams |
+| [`docs/04_state_diagram.md`](docs/04_state_diagram.md) | State machine, truth tables, control logic |
+| [`docs/05_testing_protocol.md`](docs/05_testing_protocol.md) | 14 scripted test scenarios |
+| [`docs/06_operator_manual.md`](docs/06_operator_manual.md) | One-page operator quick reference |
+| [`docs/07_technical_report.md`](docs/07_technical_report.md) | Full technical report (architecture, design, CI experiment) |
+
+## Resume Bullet Points
+
+- Designed and implemented a PLC-controlled conveyor automation system (IEC 61131-3 Structured Text) with modular function blocks for safety interlocks (E-Stop latching, defense-in-depth motor gating), jam detection with configurable thresholds, and accept/reject routing logic.
+- Developed a 3-screen HMI (CODESYS Visualization) with real-time conveyor graphics, fault diagnostics, and a metrics dashboard tracking throughput, cycle time, jam rate, and uptime -- enabling data-driven operator decisions.
+- Built a Python process simulator with OPC-UA integration and real-time Tkinter visualization, then conducted a continuous improvement experiment that reduced false jam detections by tuning detection parameters, demonstrating a data-driven approach to improving MHE reliability and throughput in a fulfillment-like setting.
+
 ## License
 
 This project is for educational and portfolio purposes.
