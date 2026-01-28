@@ -1,0 +1,35 @@
+# Improved Configuration - jam timeout 5.5s, jam probability 10%
+# Change: increased jam timeout from 4.0 to 5.5 seconds
+opcua:
+  server_url: "opc.tcp://localhost:4840"
+  namespace: "http://codesys.com/UA"
+  timeout_ms: 5000
+conveyor:
+  total_length_mm: 3000
+  infeed_to_diverter_mm: 1500
+  diverter_to_outfeed_mm: 1000
+  belt_speed_mms: 500
+  box_length_mm: 200
+boxes:
+  arrival_rate_per_hour: 72
+  arrival_jitter_pct: 20
+  min_spacing_mm: 300
+jams:
+  enabled: true
+  probability_per_box: 0.10
+  jam_location: "random"
+  auto_clear_sec: 0
+simulation:
+  duration_sec: 900
+  time_scale: 1.0
+  update_interval_ms: 50
+logging:
+  enabled: true
+  output_dir: "../data/improved"
+  log_interval_sec: 1.0
+  log_events: true
+visualization:
+  enabled: true
+  window_width: 1000
+  window_height: 500
+  update_fps: 30

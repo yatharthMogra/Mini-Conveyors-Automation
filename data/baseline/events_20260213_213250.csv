@@ -1,0 +1,39 @@
+sim_time_sec,event_type,box_id,description
+54.48,BOX_ARRIVAL,1,Box 1 arrived at infeed
+59.83,BOX_EXIT_B,1,"Box 1 exited at Station B (accept), cycle=5.4s"
+94.69,BOX_ARRIVAL,2,Box 2 arrived at infeed
+100.04,BOX_EXIT_B,2,"Box 2 exited at Station B (accept), cycle=5.4s"
+140.69,BOX_ARRIVAL,3,Box 3 arrived at infeed
+146.05,BOX_EXIT_C,3,"Box 3 exited at Station C (reject), cycle=5.4s"
+184.59,BOX_ARRIVAL,4,Box 4 arrived at infeed
+189.98,BOX_EXIT_B,4,"Box 4 exited at Station B (accept), cycle=5.4s"
+227.83,BOX_ARRIVAL,5,Box 5 arrived at infeed
+233.19,BOX_EXIT_B,5,"Box 5 exited at Station B (accept), cycle=5.4s"
+276.52,BOX_ARRIVAL,6,Box 6 arrived at infeed
+281.89,BOX_EXIT_C,6,"Box 6 exited at Station C (reject), cycle=5.4s"
+320.04,BOX_ARRIVAL,7,Box 7 arrived at infeed
+325.42,BOX_EXIT_B,7,"Box 7 exited at Station B (accept), cycle=5.4s"
+367.15,BOX_ARRIVAL,8,Box 8 arrived at infeed
+372.50,BOX_EXIT_B,8,"Box 8 exited at Station B (accept), cycle=5.4s"
+409.01,BOX_ARRIVAL,9,Box 9 arrived at infeed
+414.38,BOX_EXIT_C,9,"Box 9 exited at Station C (reject), cycle=5.4s"
+457.28,BOX_ARRIVAL,10,Box 10 arrived at infeed
+462.66,BOX_EXIT_B,10,"Box 10 exited at Station B (accept), cycle=5.4s"
+500.25,BOX_ARRIVAL,11,Box 11 arrived at infeed
+505.63,BOX_EXIT_B,11,"Box 11 exited at Station B (accept), cycle=5.4s"
+544.06,BOX_ARRIVAL,12,Box 12 arrived at infeed
+549.42,BOX_EXIT_C,12,"Box 12 exited at Station C (reject), cycle=5.4s"
+584.56,BOX_ARRIVAL,13,Box 13 arrived at infeed
+589.94,BOX_EXIT_B,13,"Box 13 exited at Station B (accept), cycle=5.4s"
+643.95,BOX_ARRIVAL,14,Box 14 arrived at infeed
+649.34,BOX_EXIT_B,14,"Box 14 exited at Station B (accept), cycle=5.4s"
+698.86,BOX_ARRIVAL,15,Box 15 arrived at infeed [WILL JAM]
+699.01,JAM,15,Box 15 jammed at infeed
+704.87,JAM_CLEARED,15,Box 15 removed by operator
+757.68,BOX_ARRIVAL,16,Box 16 arrived at infeed
+763.03,BOX_EXIT_B,16,"Box 16 exited at Station B (accept), cycle=5.4s"
+799.83,BOX_ARRIVAL,17,Box 17 arrived at infeed
+805.21,BOX_EXIT_B,17,"Box 17 exited at Station B (accept), cycle=5.4s"
+843.48,BOX_ARRIVAL,18,Box 18 arrived at infeed
+848.86,BOX_EXIT_C,18,"Box 18 exited at Station C (reject), cycle=5.4s"
+0.00,SUMMARY,0,"Total processed: 17, Accept: 12, Reject: 5"

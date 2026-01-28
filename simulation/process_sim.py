@@ -26,6 +26,7 @@ import yaml
 
 from opc_client import OPCUAClient
 from data_logger import DataLogger
+from local_plc_logic import LocalPLCLogic
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,9 @@ class ProcessSimulator:
             log_interval_sec=log_cfg.get("log_interval_sec", 1.0),
             log_events=log_cfg.get("log_events", True),
         )
+        
+        # Local PLC logic engine (used when CODESYS is not available)
+        self.local_plc = LocalPLCLogic()
         
         # Visualization
         self.enable_viz = enable_viz and self.config.get("visualization", {}).get("enabled", True)
@@ -208,25 +212,19 @@ class ProcessSimulator:
                     ("OPC-UA" if not self.plc.simulation_mode else "Local Simulation"))
 
     def start_system(self):
-        """Send start command to PLC."""
+        """Send start command to PLC (consumed on next scan)."""
         logger.info("Sending START command to PLC")
         self.plc.write("bHMI_Start", True)
-        time.sleep(0.1)
-        self.plc.write("bHMI_Start", False)
 
     def stop_system(self):
-        """Send stop command to PLC."""
+        """Send stop command to PLC (consumed on next scan)."""
         logger.info("Sending STOP command to PLC")
         self.plc.write("bHMI_Stop", True)
-        time.sleep(0.1)
-        self.plc.write("bHMI_Stop", False)
 
     def clear_fault(self):
-        """Send fault clear command to PLC."""
+        """Send fault clear command to PLC (consumed on next scan)."""
         logger.info("Sending FAULT CLEAR command to PLC")
         self.plc.write("bHMI_FaultClear", True)
-        time.sleep(0.1)
-        self.plc.write("bHMI_FaultClear", False)
 
     def update(self, dt: float):
         """
@@ -235,33 +233,48 @@ class ProcessSimulator:
         Args:
             dt: Time step in seconds
         """
-        self.sim_time += dt
+        # Sub-step to avoid boxes skipping over photoeyes at high time scales.
+        # Max physics step = 0.05s sim-time (box moves 25mm at full speed).
+        MAX_PHYSICS_DT = 0.05
+        remaining = dt
         
-        # Read PLC outputs
-        motor_on = self.plc.read("bConveyorMotor")
-        diverter_extended = self.plc.read("bDiverterActuator")
-        speed_setpoint = self.plc.read("rConveyorSpeed") or 1.0
+        while remaining > 0:
+            step = min(remaining, MAX_PHYSICS_DT)
+            remaining -= step
+            self.sim_time += step
+            
+            # 1. Update photoeye states (so PLC sees current sensors)
+            self._update_photoeyes()
+            
+            # 2. Run local PLC logic scan
+            if self.plc.simulation_mode:
+                self.local_plc.scan(self.plc._local_tags, step)
+                self._auto_recover_jams()
+            
+            # 3. Read PLC outputs
+            motor_on = self.plc.read("bConveyorMotor")
+            diverter_extended = self.plc.read("bDiverterActuator")
+            speed_setpoint = self.plc.read("rConveyorSpeed") or 1.0
+            
+            # 4. Generate new boxes (only when system is running)
+            if self.sim_time >= self.next_arrival_time:
+                if self.plc.read("iHMI_State") == 2:  # RUNNING
+                    self._generate_box()
+                self._schedule_next_arrival()
+            
+            # 5. Move boxes along conveyor
+            if motor_on:
+                speed = self.conveyor.belt_speed_mms * speed_setpoint
+                self._move_boxes(step, speed, diverter_extended)
         
-        # Generate new boxes
-        if self.sim_time >= self.next_arrival_time:
-            self._generate_box()
-            self._schedule_next_arrival()
-        
-        # Move boxes along conveyor
-        if motor_on:
-            speed = self.conveyor.belt_speed_mms * speed_setpoint
-            self._move_boxes(dt, speed, diverter_extended)
-        
-        # Update photoeye states
-        self._update_photoeyes()
-        
-        # Log data
-        metrics = self.plc.read_metrics() if not self.plc.simulation_mode else {
+        # Gather metrics
+        metrics = {
             "iHMI_State": self.plc.read("iHMI_State"),
-            "rHMI_BoxCount": len(self.completed_boxes),
-            "rHMI_AvgCycleTime": self._calc_avg_cycle_time(),
-            "rHMI_JamCount": sum(1 for b in self.boxes if b.is_jammed),
-            "rHMI_Throughput": self._calc_throughput(),
+            "rHMI_BoxCount": self.plc.read("rHMI_BoxCount"),
+            "rHMI_AvgCycleTime": self.plc.read("rHMI_AvgCycleTime"),
+            "rHMI_JamCount": self.plc.read("rHMI_JamCount"),
+            "rHMI_Throughput": self.plc.read("rHMI_Throughput"),
+            "sHMI_FaultMsg": self.plc.read("sHMI_FaultMsg"),
         }
         self.data_logger.log_metrics(self.sim_time, metrics)
         
@@ -289,6 +302,56 @@ class ProcessSimulator:
                 sim_time=self.sim_time,
                 metrics=metrics,
             )
+
+    def _auto_recover_jams(self):
+        """
+        Simulate operator clearing jams after the PLC detects them.
+        When the PLC enters FAULT state due to a jam, wait a few seconds,
+        then remove the jammed box and send a fault clear command.
+        """
+        if not hasattr(self, '_jam_recovery_timer'):
+            self._jam_recovery_timer = 0.0
+            self._recovering = False
+
+        state = self.plc.read("iHMI_State")
+        
+        if state == 3 and not self._recovering:  # FAULT
+            self._recovering = True
+            self._jam_recovery_timer = 0.0
+        
+        if self._recovering:
+            self._jam_recovery_timer += 0.05  # ~dt
+            
+            # After 3 seconds of "operator response time", clear the jam
+            if self._jam_recovery_timer >= 3.0:
+                # Remove jammed boxes from conveyor
+                jammed = [b for b in self.active_boxes if b.state == BoxState.JAMMED]
+                for box in jammed:
+                    self.active_boxes.remove(box)
+                    self.data_logger.log_event(
+                        self.sim_time, "JAM_CLEARED", box.box_id,
+                        f"Box {box.box_id} removed by operator"
+                    )
+                    logger.info(f"Operator cleared jammed box {box.box_id}")
+                
+                # Update photoeyes (jammed box removed)
+                self._update_photoeyes()
+                
+                # Run one more scan so PLC sees clear PEs
+                self.local_plc.scan(self.plc._local_tags, 0.05)
+                
+                # Send fault clear
+                self.clear_fault()
+                
+                # Run scan to process the clear
+                self.local_plc.scan(self.plc._local_tags, 0.05)
+                
+                self._recovering = False
+                self._jam_recovery_timer = 0.0
+                
+                # Re-start the system after clearing
+                if self.plc.read("iHMI_State") == 0:  # STOPPED
+                    self.start_system()
 
     def _generate_box(self):
         """Create a new box and add it to the conveyor."""
@@ -376,34 +439,38 @@ class ProcessSimulator:
                 box.state = BoxState.AT_INFEED
 
     def _update_photoeyes(self):
-        """Update photoeye states based on box positions."""
-        # Check if any box is at each photoeye position
+        """Update photoeye states based on box positions.
+        
+        Uses range-based detection: a PE is blocked if any part of the
+        box overlaps the PE position (box front to box back).
+        """
         infeed_blocked = False
         diverter_blocked = False
         outfeed_b_blocked = False
         outfeed_c_blocked = False
         
+        box_len = self.conveyor.box_length_mm
+        
         for box in self.active_boxes:
-            pos = box.position_mm
-            half_box = self.conveyor.box_length_mm / 2
+            front = box.position_mm + box_len / 2
+            back  = box.position_mm - box_len / 2
             
             # Infeed PE
-            if abs(pos - self.conveyor.infeed_pe_pos) < half_box:
+            if back <= self.conveyor.infeed_pe_pos <= front:
                 infeed_blocked = True
             
             # Diverter PE
-            if abs(pos - self.conveyor.diverter_pe_pos) < half_box:
+            if back <= self.conveyor.diverter_pe_pos <= front:
                 diverter_blocked = True
             
-            # Outfeed B PE (only for accept boxes)
-            if not box.is_reject and abs(pos - self.conveyor.outfeed_b_pos) < half_box:
+            # Outfeed B PE (accept boxes only)
+            if not box.is_reject and back <= self.conveyor.outfeed_b_pos <= front:
                 outfeed_b_blocked = True
             
-            # Outfeed C PE (only for reject boxes)
-            if box.is_reject and abs(pos - self.conveyor.outfeed_c_pos) < half_box:
+            # Outfeed C PE (reject boxes only)
+            if box.is_reject and back <= self.conveyor.outfeed_c_pos <= front:
                 outfeed_c_blocked = True
         
-        # Write photoeye states to PLC
         self.plc.write("bInfeedPE", infeed_blocked)
         self.plc.write("bDiverterPE", diverter_blocked)
         self.plc.write("bOutfeedBPE", outfeed_b_blocked)
@@ -473,11 +540,29 @@ class ProcessSimulator:
 
     def _finalize(self):
         """Clean up after simulation run."""
-        logger.info(f"Simulation complete. Time: {self.sim_time:.1f}s")
-        logger.info(f"  Boxes processed: {len(self.completed_boxes)}")
-        logger.info(f"  Avg cycle time: {self._calc_avg_cycle_time():.1f}s")
-        logger.info(f"  Throughput: {self._calc_throughput():.1f} boxes/hr")
-        logger.info(f"  Jams: {sum(1 for b in self.boxes if b.is_jammed)}")
+        box_count = self.plc.read("rHMI_BoxCount") or len(self.completed_boxes)
+        avg_ct = self.plc.read("rHMI_AvgCycleTime") or self._calc_avg_cycle_time()
+        throughput = self.plc.read("rHMI_Throughput") or self._calc_throughput()
+        jam_count = self.plc.read("rHMI_JamCount") or sum(1 for b in self.boxes if b.is_jammed)
+        
+        print("")
+        print("=" * 60)
+        print("  SIMULATION RESULTS")
+        print("=" * 60)
+        mins = int(self.sim_time) // 60
+        secs = int(self.sim_time) % 60
+        print(f"  Duration:          {mins}m {secs}s ({self.sim_time:.0f}s)")
+        print(f"  Boxes processed:   {box_count}")
+        print(f"  Avg cycle time:    {avg_ct:.2f}s")
+        print(f"  Throughput:        {throughput:.1f} boxes/hr")
+        print(f"  Jam events:        {jam_count}")
+        accept = sum(1 for b in self.completed_boxes if not b.is_reject)
+        reject = sum(1 for b in self.completed_boxes if b.is_reject)
+        print(f"  Routed to B (ok):  {accept}")
+        print(f"  Routed to C (rej): {reject}")
+        print(f"  Output dir:        {self.data_logger.output_dir}")
+        print("=" * 60)
+        print("")
         
         # Stop system
         self.stop_system()
@@ -508,6 +593,10 @@ def main():
                        help="Override simulation duration in seconds")
     parser.add_argument("--time-scale", type=float,
                        help="Override time scale (e.g., 10.0 for 10x speed)")
+    parser.add_argument("--jam-timeout", type=float,
+                       help="Override jam detection timeout in seconds")
+    parser.add_argument("--seed", type=int,
+                       help="Random seed for reproducible runs")
     parser.add_argument("--verbose", "-v", action="store_true",
                        help="Enable verbose logging")
     
@@ -531,8 +620,16 @@ def main():
     if args.time_scale:
         sim.config.setdefault("simulation", {})["time_scale"] = args.time_scale
     
+    if args.seed is not None:
+        random.seed(args.seed)
+    
     # Run
     sim.initialize()
+    
+    if args.jam_timeout is not None:
+        sim.plc.write("rJamTimeoutSec", args.jam_timeout)
+        logger.info(f"Jam timeout set to {args.jam_timeout}s")
+    
     sim.run(duration_sec=args.duration)
 
 
