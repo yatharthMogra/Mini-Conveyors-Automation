@@ -7,6 +7,12 @@
 > the system halts, alarms, and waits for the operator -- exactly as
 > a real fulfillment center conveyor would.
 
+<p align="center">
+  <img src="docs/images/visualizer_demo.gif" alt="Live conveyor simulation showing boxes moving, photoeyes triggering, diverter routing, and jam recovery" width="800"/>
+  <br/>
+  <em>Live simulator: boxes enter at Station A, get routed to accept/reject, and the PLC handles jam faults automatically</em>
+</p>
+
 ---
 
 ## What This Project Does
@@ -131,7 +137,7 @@ python generate_plots.py
 python process_sim.py --duration 120 --time-scale 5
 ```
 
-This opens a Tkinter window showing the conveyor in real time: boxes moving, photoeyes lighting up, diverter firing, status lights blinking. You'll see boxes enter at the left, get scanned, and exit to Station B or C on the right.
+This opens a Tkinter window showing the conveyor in real time -- the GIF at the top of this README was captured from this view. Boxes enter at the left, get scanned at each photoeye, and exit to Station B (accept) or C (reject) on the right. When a jam strikes, the system goes to FAULT (red), clears the jam, and resumes automatically.
 
 ### Full Experience (with CODESYS)
 
