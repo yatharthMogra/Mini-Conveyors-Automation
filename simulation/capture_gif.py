@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 OUTPUT = Path(__file__).parent.parent / "docs" / "images" / "visualizer_demo.gif"
 
 # --- Configuration ---
-SIM_DURATION_SEC = 180      # 180s of sim time – enough for boxes, routing, and a jam
-TIME_SCALE = 10.0           # 10x speed  → ~18s real capture
-CAPTURE_INTERVAL = 0.20     # Capture a frame every 0.20s real time
-TARGET_FPS = 10             # GIF playback speed (slightly slower for readability)
+SIM_DURATION_SEC = 120      # 120s of sim time – enough for boxes, routing, and a jam
+TIME_SCALE = 3.0            # 3x speed  → smoother box movement
+CAPTURE_INTERVAL = 0.15     # Capture a frame every 0.15s real time
+TARGET_FPS = 8              # GIF playback speed (125ms per frame – easy on the eyes)
 SEED = 42
 WIDTH, HEIGHT = 1000, 500
 
