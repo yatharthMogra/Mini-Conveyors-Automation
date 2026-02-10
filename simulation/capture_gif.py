@@ -25,7 +25,7 @@ OUTPUT = Path(__file__).parent.parent / "docs" / "images" / "visualizer_demo.gif
 
 # --- Configuration ---
 SIM_DURATION_SEC = 120      # 120s of sim time – enough for boxes, routing, and a jam
-TIME_SCALE = 3.0            # 3x speed  → smoother box movement
+TIME_SCALE = 4.0            # 4x speed  → smooth but not sluggish
 CAPTURE_INTERVAL = 0.15     # Capture a frame every 0.15s real time
 TARGET_FPS = 8              # GIF playback speed (125ms per frame – easy on the eyes)
 SEED = 42
